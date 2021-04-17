@@ -1,0 +1,12 @@
+[submodule "submodules/opencv"]
+	path = submodules/opencv
+	url = https://github.com/opencv/opencv.git
+[submodule "submodules/boost"]
+	path = submodules/boost
+	url = https://github.com/boostorg/boost.git
+[submodule "submodules/leptonica"]
+	path = submodules/leptonica
+	url = https://github.com/DanBloomberg/leptonica.git
+[submodule "submodules/tesseract"]
+	path = submodules/tesseract
+	url = https://github.com/tesseract-ocr/tesseract.git
