@@ -16,27 +16,28 @@ set(SRC_DIR src)
 set(TEST_DIR tests)
 
 set(ORIGINAL_PACKAGE_PATH ${SRC_DIR}/selen)
-set(C_DIR ${ORIGINAL_PACKAGE_PATH})
-set(H_DIR ${ORIGINAL_PACKAGE_PATH})
+set(ORIGINAL_PACKAGE_C_DIR ${ORIGINAL_PACKAGE_PATH})
+set(ORIGINAL_PACKAGE_H_DIR ${ORIGINAL_PACKAGE_PATH})
 
-file(GLOB MAIN_SOURCE ${SRC_DIR}/main.cpp)
-file(GLOB LIB_SOURCE ${C_DIR}/*.cpp)
-file(GLOB TEST_SOURCE ${TEST_DIR}/*.*)
+file(GLOB MAIN_FILE ${SRC_DIR}/main.cpp)
+file(GLOB TEST_FILES ${TEST_DIR}/*.*)
 
-include_directories(${H_DIR})
+file(GLOB ORIGINAL_PACKAGE_C_FILES ${ORIGINAL_PACKAGE_C_DIR}/*.cpp)
+
+include_directories(${ORIGINAL_PACKAGE_H_DIR})
 
 ################################################################################
 # main build
 ################################################################################
 
-# add_executable(conflict-marker-check  ${MAIN_SOURCE} ${LIB_SOURCE})
+# add_executable(conflict-marker-check  ${MAIN_FILE} ${ORIGINAL_PACKAGE_C_FILES})
 
 
 ################################################################################
 # testing build
 ################################################################################
 
-add_executable(cmd-testing ${TEST_SOURCE} ${LIB_SOURCE})
+add_executable(cmd-testing ${TEST_FILES} ${ORIGINAL_PACKAGE_C_FILES})
 
 add_subdirectory(submodules/googletest)
 
