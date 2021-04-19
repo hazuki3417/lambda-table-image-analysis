@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.14.4)
-project(conflict-marker-check 
+project(lambda-table-image-analysis 
     VERSION 1.0.0
     DESCRIPTION "git conflict marker check command"
     LANGUAGES CXX)
 
-
 ################################################################################
 # 初期設定
 ################################################################################
+
+set (CMAKE_CXX_STANDARD 11)
 
 set(INCLUDE_PATH /usr/local/include)
 set(LIB_PATH /usr/local/lib)
@@ -24,31 +25,45 @@ file(GLOB TEST_FILES ${TEST_DIR}/*.*)
 
 file(GLOB ORIGINAL_PACKAGE_C_FILES ${ORIGINAL_PACKAGE_C_DIR}/*.cpp)
 
-include_directories(${ORIGINAL_PACKAGE_H_DIR})
+file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv*.dylib)
+
+
+################################################################################
+# target common include header and libraries
+################################################################################
+
+# TODO: すべてのヘッダーやライブラリが取り込まれるのか、必要なものだけ取り込まれるのか確認する
+
+include_directories(
+	${ORIGINAL_PACKAGE_H_DIR}
+	${INCLUDE_PATH}
+	)
+
+# NOTE: 必要なライブラリは随時下記に追加していく
+link_libraries(
+	${LIB_PATH}/libboost_filesystem.dylib
+	${LIB_FILES_OPENCV}
+	${LIB_PATH}/libtesseract.dylib
+	${LIB_PATH}/liblept.dylib
+	)
 
 ################################################################################
 # main build
 ################################################################################
 
-# add_executable(conflict-marker-check  ${MAIN_FILE} ${ORIGINAL_PACKAGE_C_FILES})
-
+add_executable(table-image-analysis  ${MAIN_FILE} ${ORIGINAL_PACKAGE_C_FILES})
 
 ################################################################################
 # testing build
 ################################################################################
 
-add_executable(cmd-testing ${TEST_FILES} ${ORIGINAL_PACKAGE_C_FILES})
+add_executable(table-image-analysis-testing ${TEST_FILES} ${ORIGINAL_PACKAGE_C_FILES} )
 
 add_subdirectory(submodules/googletest)
 
-target_include_directories(
-	cmd-testing PUBLIC
-	${INCLUDE_PATH}
-)
-
 target_link_libraries(
-	cmd-testing
+	table-image-analysis-testing
 	gtest
 )
 
-add_test(NAME cmd-testing COMMAND cmd-testing)
+add_test(NAME table-image-analysis-testing COMMAND table-image-analysis-testing)
