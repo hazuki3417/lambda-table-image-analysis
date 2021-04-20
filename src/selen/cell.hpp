@@ -1,19 +1,22 @@
-#pragma once
+#ifndef CELL_H
+#define CELL_H
 
 #include <iostream>
-#include "coordinate.hpp"
 
-namespace selen
-{
-    class cell
+namespace selen{
+    typedef struct
     {
-        private:
-            coordinate* coord;
-            std::string str;
-        public:
-            cell(coordinate* coord, std::string str);
-            int get_row_index();
-            int get_col_index();
-            std::string get_str();
-    };
+        std::string path;
+        std::string str;
+        int top;
+        int left;
+        int right;
+        int bottom;
+        int width;
+        int height;
+    } cell;
 }
+
+#endif
+
+
