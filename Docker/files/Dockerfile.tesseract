@@ -1,0 +1,14 @@
+FROM hazuki3417/cpp-build-opencv:latest
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG workspace=/var/workspace
+
+WORKDIR ${workspace}
+
+# build & install tesseract
+RUN git clone https://github.com/tesseract-ocr/tesseract.git && \
+    cd tesseract && \
+    ./autogen.sh && \
+    ./configure --prefix=/usr/local && \
+    make && \
+    make install

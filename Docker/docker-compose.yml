@@ -1,0 +1,87 @@
+version: "3.0"
+
+## build
+# docker-compose build {target name}
+# docker-compose build --no-cache cpp-build-base
+# docker-compose build --no-cache cpp-build-aws-runtime
+# docker-compose build --no-cache cpp-build-aws-sdk
+# docker-compose build --no-cache cpp-build-boost
+# docker-compose build --no-cache cpp-build-googletest
+# docker-compose build --no-cache cpp-build-leptonica
+# docker-compose build --no-cache cpp-build-opencv
+# docker-compose build --no-cache cpp-build-tesseract
+
+## run
+# docker-compose run --rm {target name}
+# docker-compose run --rm cpp-build-base
+# docker-compose run --rm cpp-build-aws-runtime
+# docker-compose run --rm cpp-build-aws-sdk
+# docker-compose run --rm cpp-build-boost
+# docker-compose run --rm cpp-build-googletest
+# docker-compose run --rm cpp-build-leptonica
+# docker-compose run --rm cpp-build-opencv
+# docker-compose run --rm cpp-build-tesseract
+
+## continer remove
+
+# docker-compose rm -a
+
+
+# TODO: マルチステージビルドでビルドコンテナを作成する
+services:
+
+  cpp-build-base:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.base
+    image: hazuki3417/cpp-build-base:latest
+    container_name: cpp-build-base
+
+  cpp-build-aws-runtime:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.aws-runtime
+    image: hazuki3417/cpp-build-aws-runtime:latest
+    container_name: cpp-build-aws-runtime
+
+  cpp-build-aws-sdk:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.aws-sdk
+    image: hazuki3417/cpp-build-aws-sdk:latest
+    container_name: cpp-build-aws-sdk
+
+  cpp-build-boost:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.boost
+    image: hazuki3417/cpp-build-boost:latest
+    container_name: cpp-build-boost
+
+  cpp-build-googletest:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.googletest
+    image: hazuki3417/cpp-build-googletest:latest
+    container_name: cpp-build-googletest
+
+  cpp-build-leptonica:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.leptonica
+    image: hazuki3417/cpp-build-leptonica:latest
+    container_name: cpp-build-leptonica
+
+  cpp-build-opencv:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.opencv
+    image: hazuki3417/cpp-build-opencv:latest
+    container_name: cpp-build-opencv
+
+  cpp-build-tesseract:
+    build:
+      context: ./files
+      dockerfile: Dockerfile.tesseract
+    image: hazuki3417/cpp-build-tesseract:latest
+    container_name: cpp-build-tesseract

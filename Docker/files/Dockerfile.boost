@@ -1,0 +1,12 @@
+FROM hazuki3417/cpp-build-aws-sdk:latest
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG workspace=/var/workspace
+
+WORKDIR ${workspace}
+
+# build & install boost
+RUN git clone --recurse-submodules https://github.com/boostorg/boost.git && \
+    cd boost && \
+    ./bootstrap.sh && \
+    ./b2 install -j8 variant=release 
