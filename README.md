@@ -71,7 +71,7 @@ cmake .. -DBUILD_ONLY="core" \
 
 make
 
-make install
+sudo make install
 ```
 
 ### boost
