@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20.1)
+cmake_minimum_required(VERSION 3.20.0)
 project(lambda-table-image-analysis 
     VERSION 1.0.0
     DESCRIPTION "git conflict marker check command"
@@ -26,12 +26,16 @@ file(GLOB TEST_FILES ${TEST_DIR}/*.*)
 file(GLOB ORIGINAL_PACKAGE_C_FILES ${ORIGINAL_PACKAGE_C_DIR}/*.cpp)
 
 # macos
-#file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.dylib)
-#file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.dylib)
+file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.dylib)
+file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.dylib)
+file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.dylib)
+file(GLOB LIB_FILE_LEPTONICA ${LIB_PATH}/liblept.dylib)
 
 # linux
-file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.so)
-file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.so)
+#file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.so)
+#file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.so)
+#file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.so)
+#file(GLOB LIB_FILE_LEPTONICA ${LIB_PATH}/liblept.so)
 
 
 ################################################################################
@@ -42,6 +46,7 @@ file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.so)
 
 include_directories(
 	${ORIGINAL_PACKAGE_H_DIR}
+	${INCLUDE_PATH}
 )
 
 # NOTE: 必要なライブラリは随時下記に追加していく
@@ -49,8 +54,8 @@ include_directories(
 #link_libraries(
 #	${LIB_FILES_BOOST}
 #	${LIB_FILES_OPENCV}
-#	${LIB_PATH}/libtesseract.so
-#	${LIB_PATH}/libleptonica.so
+#	${LIB_FILE_TESSERACT}
+#	${LIB_FILE_LEPTONICA}
 #)
 
 ################################################################################
@@ -67,8 +72,8 @@ target_link_libraries(
 	table-image-analysis
 	${LIB_FILES_BOOST}
 	${LIB_FILES_OPENCV}
-	${LIB_PATH}/libtesseract.so
-	${LIB_PATH}/libleptonica.so
+	${LIB_FILE_TESSERACT}
+	${LIB_FILE_LEPTONICA}
 )
 
 
@@ -89,8 +94,26 @@ target_link_libraries(
 	gtest
 	${LIB_FILES_BOOST}
 	${LIB_FILES_OPENCV}
-	${LIB_PATH}/libtesseract.so
-	${LIB_PATH}/libleptonica.so
+	${LIB_FILE_TESSERACT}
+	${LIB_FILE_LEPTONICA}
 )
 
 add_test(NAME table-image-analysis-testing COMMAND table-image-analysis-testing)
+
+
+################################################################################
+# lambda package build
+################################################################################
+
+#cmake_minimum_required(VERSION 3.5)
+#set(CMAKE_CXX_STANDARD 11)
+#
+#project(api LANGUAGES CXX)
+#
+#find_package(aws-lambda-runtime REQUIRED)
+#find_package(AWSSDK COMPONENTS core)
+#
+#add_executable(${PROJECT_NAME} "../src/main.cpp")
+#target_link_libraries(${PROJECT_NAME} PUBLIC AWS::aws-lambda-runtime ${AWSSDK_LINK_LIBRARIES})
+#
+#aws_lambda_package_target(${PROJECT_NAME})
