@@ -26,16 +26,16 @@ file(GLOB TEST_FILES ${TEST_DIR}/*.*)
 file(GLOB ORIGINAL_PACKAGE_C_FILES ${ORIGINAL_PACKAGE_C_DIR}/*.cpp)
 
 # macos
-file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.dylib)
-file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.dylib)
-file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.dylib)
-file(GLOB LIB_FILE_LEPTONICA ${LIB_PATH}/liblept.dylib)
+#file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.dylib)
+#file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.dylib)
+#file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.dylib)
+#file(GLOB LIB_FILE_LEPTONICA ${LIB_PATH}/liblept.dylib)
 
 # linux
-#file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.so)
-#file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.so)
-#file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.so)
-#file(GLOB LIB_FILE_LEPTONICA ${LIB_PATH}/liblept.so)
+file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.so)
+file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.so)
+file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.so)
+file(GLOB LIB_FILE_LEPTONICA ${LIB_PATH}/liblept.so)
 
 
 ################################################################################
