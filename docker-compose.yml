@@ -1,0 +1,50 @@
+version: "3.0"
+
+## example command（with docker command）
+
+## build
+# docker build -t {image name} .
+## Build a specific stage
+# docker build -t {image name} --target {stage name} .
+
+## run
+# docker run --rm -it {image name}
+# docker run --rm -it hazuki3417/cpp-build
+# docker run --rm -it hazuki3417/cpp-build-lambda-table-image-analysis
+
+## example command（with docker-compose command）
+
+## build
+# docker-compose build {target name}
+# docker-compose build --no-cache cpp-build
+# docker-compose build --no-cache cpp-build-lambda-table-image-analysis
+
+## run
+# docker-compose run --rm {target name}
+# docker-compose run --rm cpp-build
+# docker-compose run --rm cpp-build-lambda-table-image-analysis
+
+## continer remove
+# docker-compose rm -a
+
+
+
+services:
+
+  cpp-build:
+    build:
+      context: ./dockerfiles
+      dockerfile: Dockerfile
+    image: hazuki3417/cpp-build:latest
+    container_name: cpp-build
+
+  cpp-build-lambda-table-image-analysis:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    image: hazuki3417/cpp-build-lambda-table-image-analysis:latest
+    container_name: cpp-build-lambda-table-image-analysis
+    volumes:
+      - type: bind
+        source: "./"
+        target: "/tmp/workspace"
