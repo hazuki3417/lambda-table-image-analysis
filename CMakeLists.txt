@@ -10,54 +10,42 @@ project(lambda-table-image-analysis
 
 set (CMAKE_CXX_STANDARD 17)
 
-set(INCLUDE_PATH /usr/local/include)
-set(LIB_PATH /usr/local/lib)
+set(INCLUDE_PATH /usr/include)
+set(LIB_PATH /usr/lib/x86_64-linux-gnu)
 
-set(SRC_DIR ./src)
-set(TEST_DIR ./tests)
+set(SRC_DIR src)
+set(TEST_DIR tests)
 
 set(ORIGINAL_PACKAGE_PATH ${SRC_DIR}/selen)
 set(ORIGINAL_PACKAGE_C_DIR ${ORIGINAL_PACKAGE_PATH})
 set(ORIGINAL_PACKAGE_H_DIR ${ORIGINAL_PACKAGE_PATH})
 
 file(GLOB MAIN_FILE ${SRC_DIR}/main.cpp)
-file(GLOB TEST_FILES ${TEST_DIR}/*.*)
+file(GLOB TEST_FILES ${TEST_DIR}/*.cpp)
 file(GLOB API_FILE ${SRC_DIR}/api.cpp)
 
 file(GLOB ORIGINAL_PACKAGE_C_FILES ${ORIGINAL_PACKAGE_C_DIR}/*.cpp)
 
-# macos
-#file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.dylib)
-#file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.dylib)
-#file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.dylib)
-#file(GLOB LIB_FILE_LEPTONICA ${LIB_PATH}/liblept.dylib)
-
-# linux
-file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.so)
 file(GLOB LIB_FILES_BOOST ${LIB_PATH}/libboost_*.so)
-file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.so)
 file(GLOB LIB_FILE_LEPTONICA ${LIB_PATH}/liblept.so)
+file(GLOB LIB_FILES_OPENCV ${LIB_PATH}/libopencv_*.so)
+file(GLOB LIB_FILE_TESSERACT ${LIB_PATH}/libtesseract.so)
 
 
-################################################################################
-# package info
-################################################################################
+# debug: path check
+#message(STATUS "cpp files:")
+#message(STATUS "    main : ${MAIN_FILE}")
+#message(STATUS "    selen: ${ORIGINAL_PACKAGE_C_FILES}")
+#message(STATUS "    test : ${TEST_FILES}")
+#message(STATUS "    api  : ${API_FILE}")
+#
+#message(STATUS "header directories:")
+#message(STATUS "    lib  : ${INCLUDE_PATH}")
+#message(STATUS "    boost : ${LIB_FILES_BOOST}")
+#message(STATUS "    leptonica : ${LIB_FILE_LEPTONICA}")
+#message(STATUS "    opencv : ${LIB_FILES_OPENCV}")
+#message(STATUS "    tesseract : ${LIB_FILE_TESSERACT}")
 
-message(STATUS "package library info")
-
-find_package(OpenCV REQUIRED) 
-message(STATUS "OpenCV library status:")
-message(STATUS "    config: ${OpenCV_DIR}")
-message(STATUS "    version: ${OpenCV_VERSION}")
-message(STATUS "    libraries: ${OpenCV_LIBS}")
-message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
-
-find_package(Boost REQUIRED)
-message(STATUS "Boost library status:")
-message(STATUS "    config: ${Boost_DIR}")
-message(STATUS "    version: ${Boost_VERSION}")
-message(STATUS "    libraries: ${Boost_LIBS}")
-message(STATUS "    include path: ${Boost_INCLUDE_DIRS}")
 
 ################################################################################
 # target common include header and libraries
@@ -66,8 +54,9 @@ message(STATUS "    include path: ${Boost_INCLUDE_DIRS}")
 # TODO: すべてのヘッダーやライブラリが取り込まれるのか、必要なものだけ取り込まれるのか確認する
 
 include_directories(
-	${ORIGINAL_PACKAGE_H_DIR}
 	${INCLUDE_PATH}
+	${ORIGINAL_PACKAGE_H_DIR}
+	/usr/include/opencv4
 )
 
 ################################################################################
@@ -75,8 +64,6 @@ include_directories(
 ################################################################################
 
 set(BUILD_BINARY_MAIN ${PROJECT_NAME})
-
-find_package(OpenCV REQUIRED)
 
 add_executable(
 	${BUILD_BINARY_MAIN}
@@ -88,9 +75,10 @@ add_executable(
 target_link_libraries(
 	${BUILD_BINARY_MAIN}
 	${LIB_FILES_BOOST}
-	${OpenCV_LIBS}
-	${LIB_FILE_TESSERACT}
 	${LIB_FILE_LEPTONICA}
+	${LIB_FILES_OPENCV}
+	${LIB_FILE_TESSERACT}
+	/lib
 )
 
 
@@ -113,9 +101,9 @@ target_link_libraries(
 	${BUILD_BINARY_TESTING}
 	gtest
 	${LIB_FILES_BOOST}
-	${OpenCV_LIBS}
-	${LIB_FILE_TESSERACT}
 	${LIB_FILE_LEPTONICA}
+	${LIB_FILES_OPENCV}
+	${LIB_FILE_TESSERACT}
 )
 
 add_test(NAME ${BUILD_BINARY_TESTING} COMMAND ${BUILD_BINARY_TESTING})
@@ -130,12 +118,21 @@ set(BUILD_BINARY_API ${PROJECT_NAME}-api)
 find_package(aws-lambda-runtime REQUIRED)
 find_package(AWSSDK COMPONENTS core)
 
-add_executable(${BUILD_BINARY_API} ${API_FILE})
+add_executable(
+	${BUILD_BINARY_API}
+	${API_FILE}
+	${ORIGINAL_PACKAGE_C_FILES} 
+)
+
 target_link_libraries(
 	${BUILD_BINARY_API} 
 	PUBLIC 
 	AWS::aws-lambda-runtime 
 	${AWSSDK_LINK_LIBRARIES}
+	${LIB_FILES_BOOST}
+	${LIB_FILE_LEPTONICA}
+	${LIB_FILES_OPENCV}
+	${LIB_FILE_TESSERACT}
 )
 
 aws_lambda_package_target(${BUILD_BINARY_API})
