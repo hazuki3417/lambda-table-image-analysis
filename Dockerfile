@@ -1,3 +1,5 @@
+ARG WORKSPACE=/tmp
+
 # Install dependent packages
 FROM hazuki3417/cpp-build:latest as dependent-packages
 
@@ -12,18 +14,15 @@ RUN apt-get install -y \
 
 
 
-FROM hazuki3417/cpp-build:latest as aws-lambda-cpp-runtime
+FROM dependent-packages as aws-lambda-cpp-runtime
 
-COPY --from=dependent-packages /usr /usr
-
+ARG WORKSPACE
 ARG SUBMODULE_NAME=aws-lambda-cpp-runtime
-ARG SUBMODULE_PATH=/tmp/${SUBMODULE_NAME}
+ARG SUBMODULE_PATH=${WORKSPACE}/${SUBMODULE_NAME}
 
 COPY ./submodules/${SUBMODULE_NAME} ${SUBMODULE_PATH}
 
 WORKDIR ${SUBMODULE_PATH}
-
-
 
 # build & install aws lambda cpp runtime
 RUN mkdir build && cd build && \
@@ -37,12 +36,11 @@ RUN mkdir build && cd build && \
 
 
 
-FROM hazuki3417/cpp-build:latest as aws-sdk-cpp
+FROM aws-lambda-cpp-runtime as aws-sdk-cpp
 
-COPY --from=aws-lambda-cpp-runtime /usr /usr
-
+ARG WORKSPACE
 ARG SUBMODULE_NAME=aws-sdk-cpp
-ARG SUBMODULE_PATH=/tmp/${SUBMODULE_NAME}
+ARG SUBMODULE_PATH=${WORKSPACE}/${SUBMODULE_NAME}
 
 COPY ./submodules/${SUBMODULE_NAME} ${SUBMODULE_PATH}
 
@@ -63,9 +61,7 @@ RUN mkdir build && cd build && \
 
 
 
-FROM hazuki3417/cpp-build:latest as boost
-
-COPY --from=aws-sdk-cpp /usr /usr
+FROM aws-sdk-cpp as boost
 
 RUN apt-get install -y \
     libboost-filesystem-dev \
@@ -74,42 +70,43 @@ RUN apt-get install -y \
     libboost-system-dev
 
 
-
-FROM hazuki3417/cpp-build:latest as googletest
-
-COPY --from=boost /usr /usr
+FROM boost as googletest
 
 RUN apt-get install -y \
     libgtest-dev
 
 
 
-FROM hazuki3417/cpp-build:latest as leptonica
-
-COPY --from=googletest /usr /usr
+FROM googletest as leptonica
 
 RUN apt-get install -y \
     libleptonica-dev
 
 
 
-FROM hazuki3417/cpp-build:latest as opencv
-
-COPY --from=leptonica /usr /usr
+FROM leptonica as opencv
 
 RUN apt-get install -y \
     libopencv-dev
 
 
 
-FROM hazuki3417/cpp-build:latest as tesseract
-
-COPY --from=opencv /usr /usr
+FROM opencv as tesseract
 
 RUN apt-get install -y \
     libtesseract-dev
 
 
+FROM hazuki3417/cpp-build:latest
+
+# 必要なもののみコピーして軽量化
+COPY --from=tesseract /etc /etc
+COPY --from=tesseract /usr /usr
+COPY --from=tesseract /var /var
+
+ARG WORKSPACE
+
+WORKDIR ${WORKSPACE}
 
 # # build lambda container
 # FROM amazon/aws-lambda-provided:latest
