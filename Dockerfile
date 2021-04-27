@@ -11,6 +11,7 @@ RUN apt-get install -y \
     libarmadillo-dev
 
 
+
 FROM hazuki3417/cpp-build:latest as aws-lambda-cpp-runtime
 
 COPY --from=dependent-packages /usr /usr
@@ -21,6 +22,8 @@ ARG SUBMODULE_PATH=/tmp/${SUBMODULE_NAME}
 COPY ./submodules/${SUBMODULE_NAME} ${SUBMODULE_PATH}
 
 WORKDIR ${SUBMODULE_PATH}
+
+
 
 # build & install aws lambda cpp runtime
 RUN mkdir build && cd build && \
@@ -72,14 +75,13 @@ RUN apt-get install -y \
 
 
 
-
-
 FROM hazuki3417/cpp-build:latest as googletest
 
 COPY --from=boost /usr /usr
 
 RUN apt-get install -y \
     libgtest-dev
+
 
 
 FROM hazuki3417/cpp-build:latest as leptonica
@@ -98,43 +100,33 @@ COPY --from=leptonica /usr /usr
 RUN apt-get install -y \
     libopencv-dev
 
+
+
 FROM hazuki3417/cpp-build:latest as tesseract
 
 COPY --from=opencv /usr /usr
 
-
 RUN apt-get install -y \
     libtesseract-dev
 
-# FROM hazuki3417/cpp-build:latest
-
-# COPY --from=tesseract /usr /usr
-
-# WORKDIR /tmp/workspace
-
-# COPY ./docker-build-entrypoint.sh /entrypoint.sh
-
-# RUN chmod +x /entrypoint.sh
-
-# ENTRYPOINT [ "/entrypoint.sh" ]
 
 
-# build lambda container
-FROM amazon/aws-lambda-provided:latest
+# # build lambda container
+# FROM amazon/aws-lambda-provided:latest
 
-# Copy custom runtime bootstrap
-COPY bootstrap ${LAMBDA_RUNTIME_DIR}
-# Copy function code
-COPY bin ${LAMBDA_TASK_ROOT}/bin
-COPY lib ${LAMBDA_TASK_ROOT}/lib
+# # Copy custom runtime bootstrap
+# COPY bootstrap ${LAMBDA_RUNTIME_DIR}
+# # Copy function code
+# COPY bin ${LAMBDA_TASK_ROOT}/bin
+# COPY lib ${LAMBDA_TASK_ROOT}/lib
 
-ARG TESSDATA_REPOSITORY=https://github.com/tesseract-ocr/tessdata/raw/master
-ARG TESSDATA_DIR=/usr/share/tessdata
+# ARG TESSDATA_REPOSITORY=https://github.com/tesseract-ocr/tessdata/raw/master
+# ARG TESSDATA_DIR=/usr/share/tessdata
 
-RUN mkdir -p ${TESSDATA_DIR} && \
-    cd ${TESSDATA_DIR} && \
-    curl -O "${TESSDATA_REPOSITORY}/eng.traineddata" && \
-    curl -O "${TESSDATA_REPOSITORY}/jpn.traineddata" && \
-    curl -O "${TESSDATA_REPOSITORY}/jpn_vert.traineddata"
+# RUN mkdir -p ${TESSDATA_DIR} && \
+#     cd ${TESSDATA_DIR} && \
+#     curl -O "${TESSDATA_REPOSITORY}/eng.traineddata" && \
+#     curl -O "${TESSDATA_REPOSITORY}/jpn.traineddata" && \
+#     curl -O "${TESSDATA_REPOSITORY}/jpn_vert.traineddata"
 
-CMD [ "function.handler" ]
+# CMD [ "function.handler" ]
