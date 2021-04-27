@@ -1,5 +1,5 @@
 # Install dependent packages
-FROM hazuki3417/cpp-build-cmake:latest as dependent-packages
+FROM hazuki3417/cpp-build:latest as dependent-packages
 
 # Install dependent packages
 RUN apt-get install -y \
@@ -11,7 +11,7 @@ RUN apt-get install -y \
     libarmadillo-dev
 
 
-FROM hazuki3417/cpp-build-cmake:latest as aws-lambda-cpp-runtime
+FROM hazuki3417/cpp-build:latest as aws-lambda-cpp-runtime
 
 COPY --from=dependent-packages /usr /usr
 
@@ -34,7 +34,7 @@ RUN mkdir build && cd build && \
 
 
 
-FROM hazuki3417/cpp-build-cmake:latest as aws-sdk-cpp
+FROM hazuki3417/cpp-build:latest as aws-sdk-cpp
 
 COPY --from=aws-lambda-cpp-runtime /usr /usr
 
@@ -60,7 +60,7 @@ RUN mkdir build && cd build && \
 
 
 
-FROM hazuki3417/cpp-build-cmake:latest as boost
+FROM hazuki3417/cpp-build:latest as boost
 
 COPY --from=aws-sdk-cpp /usr /usr
 
@@ -74,7 +74,7 @@ RUN apt-get install -y \
 
 
 
-FROM hazuki3417/cpp-build-cmake:latest as googletest
+FROM hazuki3417/cpp-build:latest as googletest
 
 COPY --from=boost /usr /usr
 
@@ -82,7 +82,7 @@ RUN apt-get install -y \
     libgtest-dev
 
 
-FROM hazuki3417/cpp-build-cmake:latest as leptonica
+FROM hazuki3417/cpp-build:latest as leptonica
 
 COPY --from=googletest /usr /usr
 
@@ -91,14 +91,14 @@ RUN apt-get install -y \
 
 
 
-FROM hazuki3417/cpp-build-cmake:latest as opencv
+FROM hazuki3417/cpp-build:latest as opencv
 
 COPY --from=leptonica /usr /usr
 
 RUN apt-get install -y \
     libopencv-dev
 
-FROM hazuki3417/cpp-build-cmake:latest as tesseract
+FROM hazuki3417/cpp-build:latest as tesseract
 
 COPY --from=opencv /usr /usr
 
@@ -106,7 +106,7 @@ COPY --from=opencv /usr /usr
 RUN apt-get install -y \
     libtesseract-dev
 
-# FROM hazuki3417/cpp-build-cmake:latest
+# FROM hazuki3417/cpp-build:latest
 
 # COPY --from=tesseract /usr /usr
 
@@ -117,3 +117,24 @@ RUN apt-get install -y \
 # RUN chmod +x /entrypoint.sh
 
 # ENTRYPOINT [ "/entrypoint.sh" ]
+
+
+# build lambda container
+FROM amazon/aws-lambda-provided:latest
+
+# Copy custom runtime bootstrap
+COPY bootstrap ${LAMBDA_RUNTIME_DIR}
+# Copy function code
+COPY bin ${LAMBDA_TASK_ROOT}/bin
+COPY lib ${LAMBDA_TASK_ROOT}/lib
+
+ARG TESSDATA_REPOSITORY=https://github.com/tesseract-ocr/tessdata/raw/master
+ARG TESSDATA_DIR=/usr/share/tessdata
+
+RUN mkdir -p ${TESSDATA_DIR} && \
+    cd ${TESSDATA_DIR} && \
+    curl -O "${TESSDATA_REPOSITORY}/eng.traineddata" && \
+    curl -O "${TESSDATA_REPOSITORY}/jpn.traineddata" && \
+    curl -O "${TESSDATA_REPOSITORY}/jpn_vert.traineddata"
+
+CMD [ "function.handler" ]
