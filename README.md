@@ -2,36 +2,46 @@
 OpenCV + Tesseract OCRを使ったテーブルの文字解析
 
 
+## 開発環境
+
+ローカル：ubuntu 20.04
+ビルド：ubuntu 20.04
+
+規格:c++17
+
+使用ライブラリ
+ - [aws-lambda-cpp-runtime](https://github.com/awslabs/aws-lambda-cpp.git)
+ - [aws-sdk-cpp](https://github.com/aws/aws-sdk-cpp.git)
+ - [opencv](https://github.com/opencv/opencv.git)
+ - [boost](https://github.com/boostorg/boost.git)
+ - [leptonica](https://github.com/DanBloomberg/leptonica.git)
+ - [tesseract](https://github.com/tesseract-ocr/tesseract.git)
+ - [googletest](https://github.com/google/googletest.git)
+
+
+
 ## 環境構築
 
-当リポジトリには下記のライブラリをサブモジュールとして追加しています。  
+下記のライブラリをサブモジュールとして追加  
 
- - [aws-lambda-cpp-runtime](https://github.com/awslabs/aws-lambda-cpp)
+ - [aws-lambda-cpp-runtime](https://github.com/awslabs/aws-lambda-cpp.git)
  - [aws-sdk-cpp](https://github.com/aws/aws-sdk-cpp.git)
- - [boost](https://www.boost.org/doc/libs/1_75_0/more/getting_started/unix-variants.html)
  - [googletest](https://github.com/google/googletest/blob/master/googletest/README.md)
- - [leptonica](http://www.leptonica.org/source/README.html)
- - [opencv](https://docs.opencv.org/master/df/d65/tutorial_table_of_content_introduction.html)
- - [tesseract](https://tesseract-ocr.github.io/tessdoc/Compiling.html)
 
 ```sh
 git submodule add https://github.com/awslabs/aws-lambda-cpp-runtime.git submodules/aws-lambda-cpp-runtime
 git submodule add https://github.com/aws/aws-sdk-cpp.git submodules/aws-sdk-cpp
-git submodule add https://github.com/boostorg/boost.git submodules/boost
 git submodule add https://github.com/google/googletest.git submodules/googletest
-git submodule add https://github.com/DanBloomberg/leptonica.git submodules/leptonica
-git submodule add https://github.com/opencv/opencv.git submodules/opencv
-git submodule add https://github.com/tesseract-ocr/tesseract.git submodules/tesseract
 ```
 
-サブモジュールを複製または更新する場合は、当リポジトリ直下で下記のコマンドを実行してください。
+追加サブモジュールのコードを反映
 
 ```sh
 git submodule update --init --recursive
 ```
 
-サブモジュールをライブラリとして利用できるようにビルド・インストールを行います。  
-ライブラリのインストールディレクトリは`/usr/local`を指定します。
+サブモジュールをライブラリとして利用できるようにビルド・インストールを行う。  
+ライブラリのインストールディレクトリは`/usr`を指定。
 
 
 ### aws-lambda-cpp-runtime
@@ -45,7 +55,7 @@ cd build
 
 cmake .. -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=OFF \
-    -DCMAKE_INSTALL_PREFIX=/usr/local
+    -DCMAKE_INSTALL_PREFIX=/usr
 
 make
 
@@ -66,24 +76,13 @@ cmake .. -DBUILD_ONLY="core" \
     -DBUILD_SHARED_LIBS=OFF \
     -DENABLE_UNITY_BUILD=ON \
     -DCUSTOM_MEMORY_MANAGEMENT=OFF \
-    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DCMAKE_INSTALL_PREFIX=/usr \
     -DENABLE_UNITY_BUILD=ON
 
 make
 
 sudo make install
 ```
-
-### boost
-
-```sh
-cd submodules/boost
-
-./bootstrap.sh
-
-./b2 install -j8 variant=release 
-```
-
 ### googletest
 
 ```sh
@@ -98,44 +97,90 @@ make
 make install
 ```
 
-### leptonica
+### その他、依存パッケージ
+
+サブモジュール以外のライブラリはaptリポジトリからインストールして利用
 
 ```sh
-cd submodules/leptonica
+RUN apt-get install -y \
+    zlib1g-dev \
+    libarmadillo-dev \
+    libtool \
+    libpng-dev \
+    libjpeg-dev \
+    libtiff-dev \
+    libboost-filesystem-dev \
+    libboost-iostreams-dev \
+    libboost-serialization-dev \
+    libboost-system-dev \
+    libleptonica-dev \
+    libopencv-dev \
+    libtesseract-dev \
+    libgtest-dev
+```
 
-mkdir build; cd build
+## ビルド・テスト
 
-cmake .. -DBUILD_PROG=1
+```sh
+# ビルド用のDockerコンテナを起動
+docker-compose run --rm cpp-build
+
+# ~ docker にアタッチ後
+mkdir build
+
+cd build
+
+# ビルド（デバッグ）
+cmake ..
 
 make
 
-make install
+# ビルド（リリース）
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/install
+
+# パッケージ化。target名は以下の規則で指定する
+# {aws-lambda-package-lambda-} + {cmakeのaws_lambda_package_target()に指定した値}
+make aws-lambda-package-lambda-table-image-analysis-api
+
+# テスト実行
+./lambda-table-image-analysis-api-testing
 ```
 
-### opencv
+
+## APIリクエスト
+
+`curl` コマンドを用いたAPIリクエストの例
 
 ```sh
-cd submodules/opencv
-
-mkdir build; cd build
-
-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON ..
-
-make -j8
-
-make install
+curl --location --request POST '{api endpoint}' \
+--header 'Content-Type: image/jpeg' \
+--data-binary '@{file path}'
 ```
 
-### tesseract
 
-```sh
-cd submodules/tesseract
+## APIレスポンス
 
-./autogen.sh
-
-./configure --prefix=/usr/local
-
-make
-
-make install
+```json
+{
+    "items" : [
+        {
+            "str": "解析結果の文字列1",
+            "top": 20,
+            "right": 20,
+            "bottom": 70,
+            "left": 220,
+            "height": 50,
+            "width": 200,
+        },
+        {
+            "str": "解析結果の文字列1",
+            "top": 20,
+            "right": 240,
+            "bottom": 90,
+            "left": 430,
+            "height": 70,
+            "width": 100,
+        }
+    ]
+}
 ```
