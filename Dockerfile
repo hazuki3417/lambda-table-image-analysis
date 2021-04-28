@@ -1,129 +1,39 @@
 ARG WORKSPACE=/tmp
+ARG PACKAGE_DIR_PATH=/tmp/api-package
 
-# Install dependent packages
-FROM hazuki3417/cpp-build:latest as dependent-packages
-
-# Install dependent packages
-RUN apt-get install -y \
-    libtool \
-    libpng-dev \
-    libjpeg-dev \
-    libtiff-dev \
-    zlib1g-dev \
-    libarmadillo-dev
-
-
-
-FROM dependent-packages as aws-lambda-cpp-runtime
+# zipファイルの展開
+FROM hazuki3417/cpp-build:latest as package-deployment
 
 ARG WORKSPACE
-ARG SUBMODULE_NAME=aws-lambda-cpp-runtime
-ARG SUBMODULE_PATH=${WORKSPACE}/${SUBMODULE_NAME}
-
-COPY ./submodules/${SUBMODULE_NAME} ${SUBMODULE_PATH}
-
-WORKDIR ${SUBMODULE_PATH}
-
-# build & install aws lambda cpp runtime
-RUN mkdir build && cd build && \
-    cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    .. && \
-    make && \
-    make install
-
-
-
-FROM aws-lambda-cpp-runtime as aws-sdk-cpp
-
-ARG WORKSPACE
-ARG SUBMODULE_NAME=aws-sdk-cpp
-ARG SUBMODULE_PATH=${WORKSPACE}/${SUBMODULE_NAME}
-
-COPY ./submodules/${SUBMODULE_NAME} ${SUBMODULE_PATH}
-
-WORKDIR ${SUBMODULE_PATH}
-
-# build & install aws sdk cpp
-RUN mkdir build && cd build && \
-    cmake \ 
-    -DBUILD_ONLY="core" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    -DCUSTOM_MEMORY_MANAGEMENT=OFF \
-    -DENABLE_UNITY_BUILD=ON \
-    .. && \
-    make && \
-    make install
-
-
-
-FROM aws-sdk-cpp as boost
-
-RUN apt-get install -y \
-    libboost-filesystem-dev \
-    libboost-iostreams-dev \
-    libboost-serialization-dev \
-    libboost-system-dev
-
-
-FROM boost as googletest
-
-RUN apt-get install -y \
-    libgtest-dev
-
-
-
-FROM googletest as leptonica
-
-RUN apt-get install -y \
-    libleptonica-dev
-
-
-
-FROM leptonica as opencv
-
-RUN apt-get install -y \
-    libopencv-dev
-
-
-
-FROM opencv as tesseract
-
-RUN apt-get install -y \
-    libtesseract-dev
-
-
-FROM hazuki3417/cpp-build:latest
-
-# 必要なもののみコピーして軽量化
-COPY --from=tesseract /etc /etc
-COPY --from=tesseract /usr /usr
-COPY --from=tesseract /var /var
-
-ARG WORKSPACE
+ARG PACKAGE_DIR_PATH
+ARG PACKAGE_FILE_NAME=lambda-table-image-analysis-api.zip
 
 WORKDIR ${WORKSPACE}
 
-# # build lambda container
-# FROM amazon/aws-lambda-provided:latest
+COPY ./build/${PACKAGE_FILE_NAME} ./
 
-# # Copy custom runtime bootstrap
-# COPY bootstrap ${LAMBDA_RUNTIME_DIR}
-# # Copy function code
-# COPY bin ${LAMBDA_TASK_ROOT}/bin
-# COPY lib ${LAMBDA_TASK_ROOT}/lib
+RUN unzip ./${PACKAGE_FILE_NAME} -d ${PACKAGE_DIR_PATH}
 
-# ARG TESSDATA_REPOSITORY=https://github.com/tesseract-ocr/tessdata/raw/master
-# ARG TESSDATA_DIR=/usr/share/tessdata
 
-# RUN mkdir -p ${TESSDATA_DIR} && \
-#     cd ${TESSDATA_DIR} && \
-#     curl -O "${TESSDATA_REPOSITORY}/eng.traineddata" && \
-#     curl -O "${TESSDATA_REPOSITORY}/jpn.traineddata" && \
-#     curl -O "${TESSDATA_REPOSITORY}/jpn_vert.traineddata"
 
-# CMD [ "function.handler" ]
+# lambda contiainerの作成
+FROM amazon/aws-lambda-provided:latest as build-container
+
+ARG PACKAGE_DIR_PATH
+
+COPY --from=package-deployment ${PACKAGE_DIR_PATH} ${PACKAGE_DIR_PATH}
+
+RUN cp -rfv  ${PACKAGE_DIR_PATH}/bootstrap ${LAMBDA_RUNTIME_DIR} && \
+    cp -rfv ${PACKAGE_DIR_PATH}/bin ${LAMBDA_TASK_ROOT}/bin && \
+    cp -rfv ${PACKAGE_DIR_PATH}/lib ${LAMBDA_TASK_ROOT}/lib
+
+ARG TESSDATA_REPOSITORY=https://github.com/tesseract-ocr/tessdata/raw/master
+ARG TESSDATA_DIR=/usr/share/tessdata
+
+RUN mkdir -p ${TESSDATA_DIR} && \
+    cd ${TESSDATA_DIR} && \
+    curl -O "${TESSDATA_REPOSITORY}/eng.traineddata" && \
+    curl -O "${TESSDATA_REPOSITORY}/jpn.traineddata" && \
+    curl -O "${TESSDATA_REPOSITORY}/jpn_vert.traineddata"
+
+CMD [ "function.handler" ]

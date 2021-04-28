@@ -1,0 +1,7 @@
+# 一旦すべてを除外
+*
+# 必要なものを任意で追加
+!aws-lambda-cpp-runtime
+!aws-sdk-cpp
+# 必要なものの中でも不要なものは除外する
+*/build

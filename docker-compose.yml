@@ -9,32 +9,53 @@ version: "3.0"
 
 ## run
 # docker run --rm -it {image name}
-# docker run --rm -it hazuki3417/cpp-build-lambda-table-image-analysis
+# docker run --rm -it hazuki3417/build-cpp-lambda-table-image-analysis
 
 ## example command（with docker-compose command）
 
 ## build
 # docker-compose build {target name}
-# docker-compose build --no-cache cpp-build-lambda-table-image-analysis
+# docker-compose build --no-cache build-cpp-lambda-table-image-analysis
+# docker-compose build --no-cache build-container-lambda-table-image-analysis
 
 ## run
 # docker-compose run --rm {target name}
-# docker-compose run --rm cpp-build-lambda-table-image-analysis
+# docker-compose run --rm build-cpp-lambda-table-image-analysis
+# docker-compose run --rm build-container-lambda-table-image-analysis
 
 ## continer remove
 # docker-compose rm -a
 
 
 
-services:
+# docker build -t hazuki3417/build-container-lambda-table-image-analysis --target {stage name} .
+# docker build -t hazuki3417/build-container-lambda-table-image-analysis --target build-cpp .
+# docker build -t hazuki3417/build-container-lambda-table-image-analysis --target build-container .
 
-  cpp-build-lambda-table-image-analysis:
+
+services:
+  
+  build-lib:
     build:
-      context: ./
-      dockerfile: Dockerfile
-    image: hazuki3417/cpp-build-lambda-table-image-analysis:latest
-    container_name: cpp-build-lambda-table-image-analysis
+      context: ./submodules
+      dockerfile: Dockerfile.build-lib
+    image: hazuki3417/build-lib:latest
+    container_name: build-lib
     volumes:
       - type: bind
         source: "./"
         target: "/tmp/workspace"
+
+  build-function:
+    image: hazuki3417/build-lib:latest
+    volumes:
+      - type: bind
+        source: "./build"
+        target: "/tmp"
+        
+  build-image:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    image: hazuki3417/build-image:latest
+    container_name: build-image

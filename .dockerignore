@@ -1,8 +1,4 @@
 # 一旦すべてを除外
 *
 # 必要なものを任意で追加
-!submodules/aws-lambda-cpp-runtime
-!submodules/aws-sdk-cpp
-!docker-build-entrypoint.sh
-# 必要なものの中でも不要なものは除外する
-submodules/*/build
+!build
