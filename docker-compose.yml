@@ -15,19 +15,17 @@ version: "3.0"
 
 ## build
 # docker-compose build {target name}
-# docker-compose build --no-cache build-cpp-lambda-table-image-analysis
-# docker-compose build --no-cache build-container-lambda-table-image-analysis
+# docker-compose build --no-cache build-lib
+# docker-compose build --no-cache build-function
+# docker-compose build --no-cache build-image
 
 ## run
 # docker-compose run --rm {target name}
-# docker-compose run --rm build-cpp-lambda-table-image-analysis
-# docker-compose run --rm build-container-lambda-table-image-analysis
+# docker-compose run --rm build-lib
+# docker-compose run --rm build-function
+# docker-compose run --rm build-image
 
-## continer remove
-# docker-compose rm -a
-
-
-
+## selected build target
 # docker build -t hazuki3417/build-container-lambda-table-image-analysis --target {stage name} .
 # docker build -t hazuki3417/build-container-lambda-table-image-analysis --target build-cpp .
 # docker build -t hazuki3417/build-container-lambda-table-image-analysis --target build-container .
@@ -50,7 +48,7 @@ services:
     image: hazuki3417/build-lib:latest
     volumes:
       - type: bind
-        source: "./build"
+        source: "./"
         target: "/tmp"
         
   build-image:
