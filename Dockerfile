@@ -27,13 +27,16 @@ RUN cp -rfv  ${PACKAGE_DIR_PATH}/bootstrap ${LAMBDA_RUNTIME_DIR} && \
     cp -rfv ${PACKAGE_DIR_PATH}/bin ${LAMBDA_TASK_ROOT}/bin && \
     cp -rfv ${PACKAGE_DIR_PATH}/lib ${LAMBDA_TASK_ROOT}/lib
 
-ARG TESSDATA_REPOSITORY=https://github.com/tesseract-ocr/tessdata/raw/master
-ARG TESSDATA_DIR=/usr/share/tessdata
+ARG TESSDATA_REPOSITORY=https://github.com/tesseract-ocr/tessdata/raw/4.1.0
+ARG TESSDATA_DIR=${LAMBDA_TASK_ROOT}/tessdata
+
+ENV TESSDATA_PREFIX=${TESSDATA_DIR}
 
 RUN mkdir -p ${TESSDATA_DIR} && \
     cd ${TESSDATA_DIR} && \
-    curl -O "${TESSDATA_REPOSITORY}/eng.traineddata" && \
-    curl -O "${TESSDATA_REPOSITORY}/jpn.traineddata" && \
-    curl -O "${TESSDATA_REPOSITORY}/jpn_vert.traineddata"
+    pwd && \
+    curl -OL "${TESSDATA_REPOSITORY}/eng.traineddata" && \
+    curl -OL "${TESSDATA_REPOSITORY}/jpn.traineddata" && \
+    curl -OL "${TESSDATA_REPOSITORY}/jpn_vert.traineddata"
 
 CMD [ "function.handler" ]
