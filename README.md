@@ -102,7 +102,7 @@ make install
 サブモジュール以外のライブラリはaptリポジトリからインストールして利用
 
 ```sh
-RUN apt-get install -y \
+apt-get install -y \
     zlib1g-dev \
     libarmadillo-dev \
     libtool \
@@ -119,15 +119,13 @@ RUN apt-get install -y \
     libgtest-dev
 ```
 
-## ビルド・テスト
+## ビルド
 
 ```sh
 # ビルド用のDockerコンテナを起動
-docker-compose run --rm cpp-build
+docker-compose run --rm build-function
 
 # ~ docker にアタッチ後
-mkdir build
-
 cd build
 
 # ビルド（デバッグ）
@@ -141,9 +139,25 @@ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/install
 # パッケージ化。target名は以下の規則で指定する
 # {aws-lambda-package-lambda-} + {cmakeのaws_lambda_package_target()に指定した値}
 make aws-lambda-package-lambda-table-image-analysis-api
+```
+
+
+## ビルド
+
+```sh
+# ビルド用のDockerコンテナを起動
+docker-compose run --rm build-function
+
+# ~ docker にアタッチ後
+cd build
+
+# ビルド（デバッグ）
+cmake ..
+
+make
 
 # テスト実行
-./lambda-table-image-analysis-api-testing
+./lambda-table-image-analysis-testing
 ```
 
 
@@ -152,35 +166,52 @@ make aws-lambda-package-lambda-table-image-analysis-api
 `curl` コマンドを用いたAPIリクエストの例
 
 ```sh
-curl --location --request POST '{api endpoint}' \
+curl --location --request POST 'https://925e8i1zw2.execute-api.ap-northeast-1.amazonaws.com/table-image-analysis' \
 --header 'Content-Type: image/jpeg' \
 --data-binary '@{file path}'
 ```
 
+動作確認をしたい場合は[こちら](examples)のスクリプトを実行してください。
+
 
 ## APIレスポンス
 
+
 ```json
 {
-    "items" : [
+    "status": true,
+    "item_count": 3,
+    "message": "",
+    "items": [
         {
-            "str": "解析結果の文字列1",
-            "top": 20,
-            "right": 20,
-            "bottom": 70,
-            "left": 220,
-            "height": 50,
-            "width": 200,
+            "str": "値\n",
+            "top": 22,
+            "right": 159,
+            "bottom": 79,
+            "left": 22,
+            "width": 137,
+            "height": 57
         },
         {
-            "str": "解析結果の文字列1",
-            "top": 20,
-            "right": 240,
-            "bottom": 90,
-            "left": 430,
-            "height": 70,
-            "width": 100,
+            "str": "1,000\n",
+            "top": 202,
+            "right": 339,
+            "bottom": 79,
+            "left": 22,
+            "width": 137,
+            "height": 57
+        },
+        {
+            "str": "",
+            "top": 22,
+            "right": 259,
+            "bottom": 179,
+            "left": 122,
+            "width": 237,
+            "height": 57
         }
     ]
 }
 ```
+
+上記のレスポンスは[サンプルスクリプト](examples/sample02.sh)を実行した結果です。
