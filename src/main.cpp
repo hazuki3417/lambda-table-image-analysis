@@ -28,13 +28,7 @@ int main()
     const std::string work_dir_path = 
         tmp_dir_path + work_dir_name_prefix + work_dir_name_suffix;
 
-
-    const std::string resources_dir_path  = "./resources/";
-    const std::string input_file_name  = "input_file2.txt";
-    const std::string input_file_path  = resources_dir_path + input_file_name;
-
-    const std::string work_file_name = "table_image.png";
-    const std::string work_file_path = work_dir_path + "/" + work_file_name;
+    const std::string target_file_path = "./resources/sample.png";
 
     selen::workspace *workspace = new selen::workspace(work_dir_path);
 
@@ -45,117 +39,83 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    std::ifstream ifs(input_file_path);
-    std::ofstream ofs(work_file_path);
-
-    if (ifs.fail() || ofs.fail())
-    {
-        output("ファイルの操作に失敗しました");
-        delete workspace;
-        exit(EXIT_FAILURE);
-    }
-
-    // base64文字列を保持する変数
-    std::string base64_str;
-
-    // base64文字列をデコードして画像ファイルとして保存
-    while (getline(ifs, base64_str))
-    {
-        // ファイル書き込み
-        ofs << selen::base64::decode(base64_str);
-    }
-
-    // ファイルを閉じる
-    ofs.close();
 
 
 
-    float kernel_h_array[1][15] = {
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-    };
+    // 画像変換・解析処理
+    cv::Mat org_image, tmp_image, tmp_v_image, tmp_h_image;
 
-    float kernel_v_array[15][1] = {
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1}
-    };
+    // 画像読み込み
+    org_image = cv::imread(target_file_path, cv::IMREAD_UNCHANGED);
+    // グレースケール変換
+    // FIXME: すでにグレースケールに変換された画像を再変換しようとするとエラーが発生する
+    cv::cvtColor(org_image, tmp_image, cv::COLOR_BGR2GRAY);
+    
+    cv::imwrite(workspace->get_path() + "/gray.png", tmp_image); // debug:
 
-    // テーブル解析処理
-    cv::Mat org_image,
-        gray_image,
-        binarization_image,
-        color_reverse_image,
-        analysis_image,
-        expansion_image,
-        h_image,
-        v_image,
-        stats_image,
-        expansion_reverse_image;
+    // 二値化
+    cv::threshold(tmp_image, tmp_image, 150, 255, cv::THRESH_BINARY);
 
-    // kernel情報作成
-    std::array<float, 15> kernel_row;
-    kernel_row.fill(1);
-    cv::Mat expansion_kernel(1, 1, CV_32F, kernel_row.data());
+    cv::imwrite(workspace->get_path() + "/binarization.png", tmp_image); // debug:
 
-    cv::Mat analysis_kernel(15, 15, CV_8U, kernel_row.data());
+    // 画像反転
+    cv::bitwise_not(tmp_image, tmp_image);
+
+    cv::imwrite(workspace->get_path() + "/reverse.png", tmp_image); // debug:
+
+
+
+    // 画像解析
 
     // 縦・横線の検出しきい値
-    const int min = 3;
+    const int min = 1;
     const int max = 15;
+
+    float kernel_h_array[min][max] = {
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+    };
+
+    float kernel_v_array[max][min] = {
+        {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}
+    };
 
     cv::Mat kernel_v(min, max, CV_8U, kernel_v_array);
     cv::Mat kernel_h(max, min, CV_8U, kernel_h_array);
 
-    // 画像読み込み
-    org_image = cv::imread(work_file_path, cv::IMREAD_UNCHANGED);
-    // グレースケール変換
-    cv::cvtColor(org_image, gray_image, cv::COLOR_BGR2GRAY);
-    // 二値化
-    cv::threshold(gray_image, binarization_image, 0, 255, cv::THRESH_OTSU);
-
-    // 画像反転
-    cv::bitwise_not(binarization_image, color_reverse_image);
-
     // 縦・横線の検出
-    cv::morphologyEx(color_reverse_image, v_image, cv::MORPH_OPEN, kernel_v);
-    cv::morphologyEx(color_reverse_image, h_image, cv::MORPH_OPEN, kernel_h);
+    cv::morphologyEx(tmp_image, tmp_v_image, cv::MORPH_OPEN, kernel_v);
+    cv::morphologyEx(tmp_image, tmp_h_image, cv::MORPH_OPEN, kernel_h);
+    // 結果をマージ
+    tmp_image = tmp_h_image | tmp_v_image;
 
-    analysis_image = h_image | v_image;
+    cv::imwrite(workspace->get_path() + "/analysis.png", tmp_image); // debug:
 
     // 膨張処理
-    cv::dilate(analysis_image, expansion_image, expansion_kernel);
+    std::array<float, 15> kernel_row;
+    kernel_row.fill(1);
+    cv::Mat expansion_kernel(1, 1, CV_32F, kernel_row.data());
+
+    cv::dilate(tmp_image, tmp_image, expansion_kernel);
+
+    cv::imwrite(workspace->get_path() + "/expansion.png", tmp_image); // debug:
 
     // 画像反転
-    cv::bitwise_not(expansion_image, expansion_reverse_image);
+    cv::bitwise_not(tmp_image, tmp_image);
 
-    cv::Mat LabelImg;
-    cv::Mat stats;
-    cv::Mat centroids;
-    cv::Mat Dst(org_image.size(), CV_8UC3);
+    cv::imwrite(workspace->get_path() + "/expansion_reverse.png", tmp_image); // debug:
 
     // セル検出
-    int nLab = cv::connectedComponentsWithStats(expansion_reverse_image, LabelImg, stats, centroids, 8, 4);
+    cv::Mat label, stats, centroids, dst(org_image.size(), CV_8UC3);
+    int nLab = cv::connectedComponentsWithStats(
+        tmp_image, label, stats, centroids, 8, 4);
 
     std::vector <selen::cell>cells;
 
-    int count = 0;
-    int min_cell_size = 15;
-    // 検出したセルの描画（枠のみ）
+    // cellとして認識する最小サイズ
+    const int min_cell_size = 15;
+
     for (int i = 2; i < nLab; ++i)
     {
-        count++;
         int *param = stats.ptr<int>(i);
 
         int x = param[cv::ConnectedComponentsTypes::CC_STAT_LEFT];
@@ -169,9 +129,9 @@ int main()
         }
 
         cv::Rect cell = cv::Rect(x, y, width, height);
-        cv::rectangle(Dst, cell, cv::Scalar(0, 255, 0), 2);
+        cv::rectangle(dst, cell, cv::Scalar(0, 255, 0), 2);
 
-        std::string file_name = "cell_" + std::to_string(count) + ".png";
+        std::string file_name = "cell_" + std::to_string(i) + ".png";
         std::string file_path = workspace->get_path() + "/" + file_name;
 
         cv::Mat cut_img(org_image, cell);
@@ -180,38 +140,31 @@ int main()
         cells.push_back({file_path, "", x, y, x + width, y + height, width, height});
     }
 
-    // デバッグ
-    // std::string gray_image_path = work_dir_path + "/gray_image.png";
-    // std::string binarization_image_path = work_dir_path + "/binarization_image.png";
-    // cv::imwrite(gray_image_path, gray_image);
-    // cv::imwrite(binarization_image_path, binarization_image);
 
-    // cv::imshow("org image", org_image);
-    // cv::imshow("gray image", gray_image);
-    // cv::imshow("binarization image", binarization_image);
-    // cv::imshow("color reverse image", color_reverse_image);
-    // cv::imshow("v kernel image", v_image);
-    // cv::imshow("h kernel image", h_image);
-    // cv::imshow("analysis image", analysis_image);
-    // cv::imshow("expansion image", expansion_image);
-    // cv::imshow("Labels", Dst);
-
+    /**
+     * 文字解析処理
+     */
     tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI();
 
-    if (api->Init(NULL, "jpn+eng"))
+    if (api->Init("/var/task/tessdata/", "jpn+eng"))
     {
         fprintf(stderr, "Could not initialize tesseract.\n");
         exit(EXIT_FAILURE);
     }
 
-    // 文字解析
     for (auto itr = cells.begin(); itr != cells.end(); ++itr)
     {
+        // 文字解析する画像を設定
         api->SetImage(pixRead((*itr).path.c_str()));
+        // 文字解析して結果を保持
         (*itr).str = api->GetUTF8Text();
     }
+
     api->End();
+
+    // メモリの開放
     delete api;
+    // delete workspace;
 
     // 出力処理
     for (auto itr = cells.begin(); itr != cells.end(); ++itr)
@@ -228,14 +181,5 @@ int main()
         );
     }
 
-    // 作業領域削除
-    if (!workspace->remove())
-    {
-        output("作業ディレクトリの削除に失敗しました");
-        delete workspace;
-        exit(EXIT_FAILURE);
-    }
-    delete workspace;
-
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
 }

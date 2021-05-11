@@ -23,27 +23,34 @@ int get_unix_timestamp()
 
 invocation_response my_handler(invocation_request const &request)
 {
-    using namespace Aws::Utils::Json;
-
-    JsonValue json(request.payload);
+    Aws::Utils::Json::JsonValue json(request.payload);
     auto v = json.View();
 
-    JsonValue resp;
-    // base64文字を受け取る
+    Aws::Utils::Json::JsonValue resp;
+
+    // リクエストデータのバリデーション
     if (!v.ValueExists("body"))
     {
         resp.WithBool("status", false);
         resp.WithString("message", "リクエストボディが存在しません");
-        return invocation_response::success(resp.View().WriteCompact(), "application/json");
+        return invocation_response::failure(
+            resp.View().WriteCompact(), "application/json");
     }
 
     if (!v.GetObject("body").IsString())
     {
         resp.WithBool("status", false);
         resp.WithString("message", "リクエストボディのデータ型が不正です");
-        return invocation_response::success(resp.View().WriteCompact(), "application/json");
+        return invocation_response::failure(
+            resp.View().WriteCompact(), "application/json");
     }
 
+    /**
+     * NOTE: ディレクトリ名にタイムスタンプを利用している
+     *       - Lambdaの実行環境は実行毎に異なるため
+     *       - 実行環境が同じ場合、ディレクトリ名が重複し、想定しないデータを操作する可能性がある
+     *       パス:/tmp/aws-lambda-{unix timestamp}
+     */
     const std::string tmp_dir_path = "/tmp/";
     const std::string work_dir_name_prefix = "aws-lambda-";
     const std::string work_dir_name_suffix = std::to_string(get_unix_timestamp());
@@ -55,121 +62,106 @@ invocation_response my_handler(invocation_request const &request)
 
     selen::workspace *workspace = new selen::workspace(work_dir_path);
 
-    // 作業領域の作成
     if (!workspace->create())
     {
         delete workspace;
         resp.WithBool("status", false);
         resp.WithString("message", "作業ディレクトリの作成に失敗しました");
-        return invocation_response::success(resp.View().WriteCompact(), "application/json");
+        return invocation_response::failure(
+            resp.View().WriteCompact(), "application/json");
     }
 
+    // base64で送られた画像情報を画像ファイルとして復元
     std::ofstream ofs(work_file_path);
 
-    // 作業ファイルの作成
     if (ofs.fail())
     {
         delete workspace;
         resp.WithBool("status", false);
-        resp.WithString("message", "作業領域の確保に失敗しました");
-        return invocation_response::success(resp.View().WriteCompact(), "application/json");
+        resp.WithString("message", "画像ファイルの復元に失敗しました");
+        return invocation_response::failure(
+            resp.View().WriteCompact(), "application/json");
     }
 
-    // base64文字列をデコードして画像ファイルとして保存
-    // ファイル書き込み
     ofs << selen::base64::decode(v.GetString("body"));
-
-    // ファイルを閉じる
     ofs.close();
 
-    // メイン処理
+    /**
+     * 画像処理
+     */
 
-
-    float kernel_h_array[1][15] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-    };
-
-    float kernel_v_array[15][1] = {
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1},
-        {1}};
-
-    // テーブル解析処理
-    cv::Mat org_image,
-        gray_image,
-        binarization_image,
-        color_reverse_image,
-        analysis_image,
-        expansion_image,
-        h_image,
-        v_image,
-        stats_image,
-        expansion_reverse_image;
-
-    // kernel情報作成
-    std::array<float, 15> kernel_row;
-    kernel_row.fill(1);
-    cv::Mat expansion_kernel(1, 1, CV_32F, kernel_row.data());
-
-    cv::Mat analysis_kernel(15, 15, CV_8U, kernel_row.data());
-
-    // 縦・横線の検出しきい値
-    const int min = 3;
-    const int max = 15;
-
-    cv::Mat kernel_v(min, max, CV_8U, kernel_v_array);
-    cv::Mat kernel_h(max, min, CV_8U, kernel_h_array);
+    // 画像変換・解析処理
+    cv::Mat org_image, tmp_image, tmp_v_image, tmp_h_image;
 
     // 画像読み込み
     org_image = cv::imread(work_file_path, cv::IMREAD_UNCHANGED);
     // グレースケール変換
-    cv::cvtColor(org_image, gray_image, cv::COLOR_BGR2GRAY);
+    // FIXME: すでにグレースケールに変換された画像を再変換しようとするとエラーが発生する
+    cv::cvtColor(org_image, tmp_image, cv::COLOR_BGR2GRAY);
+
+    cv::imwrite(workspace->get_path() + "/gray.png", tmp_image); // debug:
+
     // 二値化
-    cv::threshold(gray_image, binarization_image, 0, 255, cv::THRESH_OTSU);
+    cv::threshold(tmp_image, tmp_image, 150, 255, cv::THRESH_BINARY);
+
+    cv::imwrite(workspace->get_path() + "/binarization.png", tmp_image); // debug:
 
     // 画像反転
-    cv::bitwise_not(binarization_image, color_reverse_image);
+    cv::bitwise_not(tmp_image, tmp_image);
+
+    cv::imwrite(workspace->get_path() + "/reverse.png", tmp_image); // debug:
+
+    // 画像解析
+
+    // 縦・横線の検出しきい値
+    const int min = 1;
+    const int max = 15;
+
+    float kernel_h_array[min][max] = {
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+    };
+
+    float kernel_v_array[max][min] = {
+        {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}
+    };
+
+    cv::Mat kernel_v(min, max, CV_8U, kernel_v_array);
+    cv::Mat kernel_h(max, min, CV_8U, kernel_h_array);
 
     // 縦・横線の検出
-    cv::morphologyEx(color_reverse_image, v_image, cv::MORPH_OPEN, kernel_v);
-    cv::morphologyEx(color_reverse_image, h_image, cv::MORPH_OPEN, kernel_h);
+    cv::morphologyEx(tmp_image, tmp_v_image, cv::MORPH_OPEN, kernel_v);
+    cv::morphologyEx(tmp_image, tmp_h_image, cv::MORPH_OPEN, kernel_h);
+    // 結果をマージ
+    tmp_image = tmp_h_image | tmp_v_image;
 
-    analysis_image = h_image | v_image;
+    cv::imwrite(workspace->get_path() + "/analysis.png", tmp_image); // debug:
 
     // 膨張処理
-    cv::dilate(analysis_image, expansion_image, expansion_kernel);
+    std::array<float, 15> kernel_row;
+    kernel_row.fill(1);
+    cv::Mat expansion_kernel(1, 1, CV_32F, kernel_row.data());
+
+    cv::dilate(tmp_image, tmp_image, expansion_kernel);
+
+    cv::imwrite(workspace->get_path() + "/expansion.png", tmp_image); // debug:
 
     // 画像反転
-    cv::bitwise_not(expansion_image, expansion_reverse_image);
+    cv::bitwise_not(tmp_image, tmp_image);
 
-    cv::Mat LabelImg;
-    cv::Mat stats;
-    cv::Mat centroids;
-    cv::Mat Dst(org_image.size(), CV_8UC3);
+    cv::imwrite(workspace->get_path() + "/expansion_reverse.png", tmp_image); // debug:
 
     // セル検出
-    int nLab = cv::connectedComponentsWithStats(expansion_reverse_image, LabelImg, stats, centroids, 8, 4);
+    cv::Mat label, stats, centroids, dst(org_image.size(), CV_8UC3);
+    int nLab = cv::connectedComponentsWithStats(
+        tmp_image, label, stats, centroids, 8, 4);
 
-    std::vector<selen::cell> cells;
+    std::vector <selen::cell>cells;
 
-    int count = 0;
-    int min_cell_size = 15;
-    // 検出したセルの描画（枠のみ）
+    // cellとして認識する最小サイズ
+    const int min_cell_size = 15;
+
     for (int i = 2; i < nLab; ++i)
     {
-        count++;
         int *param = stats.ptr<int>(i);
 
         int x = param[cv::ConnectedComponentsTypes::CC_STAT_LEFT];
@@ -177,16 +169,15 @@ invocation_response my_handler(invocation_request const &request)
         int height = param[cv::ConnectedComponentsTypes::CC_STAT_HEIGHT];
         int width = param[cv::ConnectedComponentsTypes::CC_STAT_WIDTH];
 
-        if (height < min_cell_size || width < min_cell_size)
-        {
+        if(height < min_cell_size || width < min_cell_size){
             // 指定したセルのサイズより小さい場合は除外する
             continue;
         }
 
         cv::Rect cell = cv::Rect(x, y, width, height);
-        cv::rectangle(Dst, cell, cv::Scalar(0, 255, 0), 2);
+        cv::rectangle(dst, cell, cv::Scalar(0, 255, 0), 2);
 
-        std::string file_name = "cell_" + std::to_string(count) + ".png";
+        std::string file_name = "cell_" + std::to_string(i) + ".png";
         std::string file_path = workspace->get_path() + "/" + file_name;
 
         cv::Mat cut_img(org_image, cell);
@@ -195,71 +186,69 @@ invocation_response my_handler(invocation_request const &request)
         cells.push_back({file_path, "", x, y, x + width, y + height, width, height});
     }
 
+
+    /**
+     * 文字解析処理
+     */
     tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI();
 
-    if (api->Init(NULL, "jpn+eng"))
+    if (api->Init("/var/task/tessdata/", "jpn+eng"))
     {
         delete workspace;
         resp.WithBool("status", false);
         resp.WithString("message", "学習ファイルの検索に失敗しました");
-        return invocation_response::success(resp.View().WriteCompact(), "application/json");
+        return invocation_response::failure(
+            resp.View().WriteCompact(), "application/json");
     }
 
-    // // 文字解析
-    // for (auto itr = cells.begin(); itr != cells.end(); ++itr)
-    // {
-    //     api->SetImage(pixRead((*itr).path.c_str()));
-    //     (*itr).str = api->GetUTF8Text();
-    // }
-    // api->End();
-    // delete api;
-
-    // // 出力処理
-    // for (auto itr = cells.begin(); itr != cells.end(); ++itr)
-    // {
-    //     // output(
-    //     //     "{str: " + (*itr).str + "," +
-    //     //     " top: " + std::to_string((*itr).top) + "," +
-    //     //     " right: " + std::to_string((*itr).right) + "," +
-    //     //     " bottom: " + std::to_string((*itr).bottom) + "," +
-    //     //     " left: " + std::to_string((*itr).left) + "," +
-    //     //     " width: " + std::to_string((*itr).width) + "," +
-    //     //     " height: " + std::to_string((*itr).height) +
-    //         // "}");
-    //     resp.WithString("str", (*itr).str);
-    //     resp.WithInteger("top", (*itr).top);
-    //     resp.WithInteger("right", (*itr).right);
-    //     resp.WithInteger("bottom", (*itr).bottom);
-    //     resp.WithInteger("left", (*itr).left);
-    //     resp.WithInteger("width", (*itr).width);
-    //     resp.WithInteger("height", (*itr).height);
-
-    //     break;
-    // }
-
-    // 作業領域削除
-    if (!workspace->remove())
+    for (auto itr = cells.begin(); itr != cells.end(); ++itr)
     {
-        // TODO: ログ出力
+        // 文字解析する画像を設定
+        api->SetImage(pixRead((*itr).path.c_str()));
+        // 文字解析して結果を保持
+        (*itr).str = api->GetUTF8Text();
     }
 
+    api->End();
+
+    // メモリの開放
+    delete api;
     delete workspace;
 
+    /**
+     * レスポンス出力処理
+     */
+    resp.WithBool("status", true);
+    resp.WithInteger("item_count", cells.size());
+    resp.WithString("message", "");
 
-    // とりあえず特になにもなければ下記に到達するはず
+    int item_count = 0;
+    Aws::Utils::Array<Aws::Utils::Json::JsonValue> items = 
+        Aws::Utils::Array<Aws::Utils::Json::JsonValue>(cells.size());
 
-    // resp.WithString("base64", ss.str());
-    resp.WithString("str", "ocr解析した文字を出力");
-    resp.WithInteger("top", 1);
-    resp.WithInteger("right", 2);
-    resp.WithInteger("bottom", 3);
-    resp.WithInteger("left", 4);
+    // 出力処理
+    for (auto itr = cells.begin(); itr != cells.end(); ++itr)
+    {
+        Aws::Utils::Json::JsonValue item;
+        item.WithString("str", (*itr).str);
+        item.WithInteger("top", (*itr).top);
+        item.WithInteger("right", (*itr).right);
+        item.WithInteger("bottom", (*itr).bottom);
+        item.WithInteger("left", (*itr).left);
+        item.WithInteger("width", (*itr).width);
+        item.WithInteger("height", (*itr).height);
 
-    return invocation_response::success(resp.View().WriteCompact(), "application/json");
+        items[item_count] = item;
+        item_count++;
+    }
+    resp.WithArray("items", items);
+
+    return invocation_response::success(
+        resp.View().WriteCompact(), "application/json");
 }
 
 int main()
 {
     run_handler(my_handler);
-    return 0;
+    return EXIT_SUCCESS;
 }
